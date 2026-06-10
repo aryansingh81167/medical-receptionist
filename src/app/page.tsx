@@ -1,7 +1,8 @@
 "use client";
 
 import { useChat, type Message } from "ai/react";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { InfoPanel } from "@/components/dashboard/InfoPanel";
@@ -12,6 +13,7 @@ export default function Home() {
   });
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isListening, setIsListening] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -22,6 +24,28 @@ export default function Home() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading]);
+
+  const handleVoiceInput = useCallback(() => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert("Your browser doesn't support voice input.");
+      return;
+    }
+    
+    setIsListening(true);
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      handleInputChange({ target: { value: transcript } } as any);
+      setIsListening(false);
+    };
+    
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    
+    recognition.start();
+  }, [handleInputChange]);
 
   return (
     <div className="bg-background overflow-hidden font-body-md">
@@ -79,7 +103,7 @@ export default function Home() {
                   <div className="flex flex-wrap gap-3 ml-14">
                     <button onClick={() => handleInputChange({ target: { value: 'Schedule physical exam' } } as any)} className="px-4 py-2 border border-primary text-primary rounded-full font-label-md text-label-md hover:bg-primary hover:text-white transition-colors">Schedule physical exam</button>
                     <button onClick={() => handleInputChange({ target: { value: 'See lab results' } } as any)} className="px-4 py-2 border border-primary text-primary rounded-full font-label-md text-label-md hover:bg-primary hover:text-white transition-colors">See lab results</button>
-                    <button className="px-4 py-2 border border-primary text-primary rounded-full font-label-md text-label-md hover:bg-primary hover:text-white transition-colors">Medication refill</button>
+                    <button onClick={() => handleInputChange({ target: { value: 'Medication refill' } } as any)} className="px-4 py-2 border border-primary text-primary rounded-full font-label-md text-label-md hover:bg-primary hover:text-white transition-colors">Medication refill</button>
                   </div>
                 </>
               )}
@@ -216,7 +240,7 @@ export default function Home() {
                   disabled={isLoading}
                 />
                 <div className="absolute right-3 flex items-center gap-2">
-                  <button type="button" className="material-symbols-outlined text-outline p-2 hover:bg-surface-container-high rounded-lg transition-colors">mic</button>
+                  <button type="button" onClick={handleVoiceInput} className={`material-symbols-outlined p-2 rounded-lg transition-colors ${isListening ? 'text-error bg-error/10 animate-pulse' : 'text-outline hover:bg-surface-container-high'}`}>mic</button>
                   <button 
                     type="submit" 
                     disabled={isLoading || !input.trim()}
@@ -236,14 +260,14 @@ export default function Home() {
 
       {/* Bottom Navigation Bar (Mobile) */}
       <footer className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 px-4 bg-surface shadow-[0_-4px_20px_rgba(0,0,0,0.04)] md:hidden">
-        <button className="flex flex-col items-center justify-center text-primary font-bold active:scale-95 transition-all">
+        <Link href="/" className="flex flex-col items-center justify-center text-primary font-bold active:scale-95 transition-all">
           <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>home</span>
           <span className="font-label-sm text-label-sm">Home</span>
-        </button>
-        <button className="flex flex-col items-center justify-center text-secondary active:scale-95 transition-all">
-          <span className="material-symbols-outlined">add_circle</span>
-          <span className="font-label-sm text-label-sm">Book</span>
-        </button>
+        </Link>
+        <Link href="/appointments" className="flex flex-col items-center justify-center text-secondary active:scale-95 transition-all">
+          <span className="material-symbols-outlined">calendar_today</span>
+          <span className="font-label-sm text-label-sm">Schedule</span>
+        </Link>
       </footer>
     </div>
   );

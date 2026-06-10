@@ -94,8 +94,16 @@ export async function POST(req: Request) {
                 
               if (slotError) return { success: false, message: 'Invalid slot.' };
               
-              // 2. Mark slot as booked
-              await supabase.from('slots').update({ status: 'booked' }).eq('id', slotId);
+              // 2. Mark slot as booked (Race condition prevention)
+              const { data: updatedSlot, error: updateError } = await supabase
+                .from('slots')
+                .update({ status: 'booked' })
+                .eq('id', slotId)
+                .eq('status', 'available')
+                .select()
+                .single();
+                
+              if (updateError || !updatedSlot) return { success: false, message: 'This slot was just booked by someone else. Please pick another time.' };
               
               // 3. Create appointment
               const { data, error } = await supabase
@@ -155,15 +163,30 @@ export async function POST(req: Request) {
           }),
           execute: async ({ appointmentId, newSlotId }: { appointmentId: string, newSlotId: string }) => {
             if (supabase) {
-              // Free old slot
-              const { data: oldAppt } = await supabase.from('appointments').select('slot_id').eq('id', appointmentId).single();
-              if (oldAppt) {
-                await supabase.from('slots').update({ status: 'available' }).eq('id', oldAppt.slot_id);
+              // Mark new slot as booked first (race condition check)
+              const { data: updatedSlot, error: updateError } = await supabase
+                .from('slots')
+                .update({ status: 'booked' })
+                .eq('id', newSlotId)
+                .eq('status', 'available')
+                .select()
+                .single();
+                
+              if (updateError || !updatedSlot) return { success: false, message: 'The new slot is no longer available.' };
+              
+              // Now fetch the old appointment
+              const { data: oldAppt } = await supabase.from('appointments').select('slot_id').eq('id', appointmentId).eq('patient_id', patientId).single();
+              if (!oldAppt) {
+                // Revert the new slot since appointment is invalid
+                await supabase.from('slots').update({ status: 'available' }).eq('id', newSlotId);
+                return { success: false, message: 'Invalid or unauthorized appointment.' };
               }
-              // Mark new slot as booked
-              await supabase.from('slots').update({ status: 'booked' }).eq('id', newSlotId);
+              
+              // Free old slot
+              await supabase.from('slots').update({ status: 'available' }).eq('id', oldAppt.slot_id);
+              
               // Update appointment
-              const { error } = await supabase.from('appointments').update({ slot_id: newSlotId }).eq('id', appointmentId);
+              const { error } = await supabase.from('appointments').update({ slot_id: newSlotId }).eq('id', appointmentId).eq('patient_id', patientId);
               if (error) return { success: false, message: 'Failed to reschedule.' };
               return { success: true, message: `Successfully rescheduled appointment.` };
             }
@@ -178,12 +201,12 @@ export async function POST(req: Request) {
           execute: async ({ appointmentId }: { appointmentId: string }) => {
             if (supabase) {
               // Free slot
-              const { data: oldAppt } = await supabase.from('appointments').select('slot_id').eq('id', appointmentId).single();
-              if (oldAppt) {
-                await supabase.from('slots').update({ status: 'available' }).eq('id', oldAppt.slot_id);
-              }
+              const { data: oldAppt } = await supabase.from('appointments').select('slot_id').eq('id', appointmentId).eq('patient_id', patientId).single();
+              if (!oldAppt) return { success: false, message: 'Invalid or unauthorized appointment.' };
+              
+              await supabase.from('slots').update({ status: 'available' }).eq('id', oldAppt.slot_id);
               // Cancel appointment
-              const { error } = await supabase.from('appointments').update({ status: 'cancelled' }).eq('id', appointmentId);
+              const { error } = await supabase.from('appointments').update({ status: 'cancelled' }).eq('id', appointmentId).eq('patient_id', patientId);
                 
               if (error) return { success: false, message: 'Failed to cancel appointment.' };
               return { success: true, message: 'Successfully canceled appointment.' };

@@ -5,8 +5,9 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "MediCare AI Receptionist",
-  description: "Your intelligent medical assistant",
+  title: "CareFlow | Clinical Integrity System",
+  description: "Your intelligent medical receptionist and patient portal powered by AI.",
+  keywords: ["Healthcare", "AI Receptionist", "Patient Portal", "Medical Booking"],
 };
 
 export default function RootLayout({
