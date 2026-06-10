@@ -155,8 +155,10 @@ export default function Home() {
                                  <p className="font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-tertiary">calendar_today</span> Available Slots</p>
                                  <div className="flex flex-wrap gap-2 mt-3">
                                     {tool.result.availableSlots?.map((slot: any) => (
-                                      <button key={slot.slotId} onClick={() => { handleInputChange({ target: { value: `Book slot ${slot.slotId} with ${slot.doctor} at ${slot.time}` } } as any); setTimeout(() => handleSubmit(new Event('submit') as any), 100); }} className="px-3 py-1.5 bg-surface-container-low hover:bg-primary hover:text-white text-on-surface rounded-lg text-sm border border-outline-variant/20 transition-all active:scale-95">
-                                        {slot.time} - {slot.doctor}
+                                      <button key={slot.slotId} onClick={() => { handleInputChange({ target: { value: `Book slot ${slot.slotId} with ${slot.doctor} at ${slot.time}` } } as any); setTimeout(() => handleSubmit(new Event('submit') as any), 100); }} className="px-3 py-1.5 bg-surface-container-low hover:bg-primary hover:text-white text-on-surface rounded-lg text-sm border border-outline-variant/20 transition-all active:scale-95 text-left flex flex-col items-start gap-0.5">
+                                        <span className="font-semibold">{slot.time}</span>
+                                        <span className="text-xs opacity-90">{slot.doctor}</span>
+                                        <span className="text-[10px] opacity-75 uppercase tracking-wider">{slot.specialty}</span>
                                       </button>
                                     ))}
                                    {tool.result.availableSlots?.length === 0 && <span className="text-sm text-error">No slots available for this date.</span>}

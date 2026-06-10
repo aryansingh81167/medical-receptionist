@@ -55,17 +55,32 @@ export async function POST(req: Request) {
 
     const { messages } = await req.json();
 
-    const result = await streamText({
-      model: groq('llama-3.3-70b-versatile'),
-      messages,
+    const models = [
+      groq('llama-3.3-70b-versatile'),
+      groq('openai/gpt-oss-120b'),
+      groq('qwen/qwen3-32b'),
+      groq('meta-llama/llama-4-scout-17b-16e-instruct'),
+      groq('llama-3.1-8b-instant')
+    ];
+
+    let result;
+    let lastError;
+
+    for (const currentModel of models) {
+      try {
+        result = await streamText({
+          model: currentModel,
+          messages,
       system: `You are a helpful, professional, and friendly AI Receptionist for a medical clinic called CareFlow. 
       Your job is to assist patients, answer their questions, and help them book appointments.
       Be concise, empathetic, and clear.
       Assume the patient is already logged in as "${patientName}" (patient_id: ${patientId}).
       Today's date is ${new Date().toLocaleDateString('en-CA')} (YYYY-MM-DD). Always use this as your reference for "today", "tomorrow", etc.
-      If they ask to book an appointment, ask them for their symptoms and preferred date. Use checkAvailability to find slots, then use bookAppointment with the slotId.
+      If they ask to book an appointment, ask them for their symptoms and preferred date. Use checkAvailability to find slots.
+      CRITICAL: When checking availability, you will see the 'specialty' of each doctor. You MUST recommend the specific doctor whose specialty best matches the patient's symptoms (e.g. Cardiology for heart issues, Pediatrics for children, General Practice for general symptoms).
+      If they ask to cancel or reschedule an appointment, DO NOT ask them for an ID. Instead, immediately call getAppointments to find their upcoming appointments. If you find the matching appointment in the result, use its ID to perform the cancellation or rescheduling. If they didn't specify which one, present the list to them and ask them to click the buttons in the UI.
       If they ask for medical records or lab results, politely inform them that you do not have access to medical records at this time.
-      Only use the tools provided to you. Do not hallucinate tools.`,
+      Only use the tools provided to you. Do not hallucinate tools or IDs.`,
       tools: {
         checkAvailability: tool({
           description: 'Check available appointment slots for a given date',
@@ -77,7 +92,7 @@ export async function POST(req: Request) {
             if (supabase) {
               const { data } = await supabase
                 .from('slots')
-                .select('id, start_time, doctors(name)')
+                .select('id, start_time, doctors(name, specialty)')
                 .eq('status', 'available')
                 .gte('start_time', `${date}T00:00:00.000Z`)
                 .lt('start_time', `${date}T23:59:59.999Z`)
@@ -88,7 +103,8 @@ export async function POST(req: Request) {
               const availableSlots = data.map(slot => ({
                 slotId: slot.id,
                 time: new Date(slot.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                doctor: (slot.doctors as any)?.name
+                doctor: (slot.doctors as any)?.name,
+                specialty: (slot.doctors as any)?.specialty
               }));
               
               return {
@@ -245,6 +261,16 @@ export async function POST(req: Request) {
       },
       maxSteps: 5,
     });
+        break; // Successfully got stream
+      } catch (err: any) {
+        console.warn(`Model failed, falling back...`, err?.message);
+        lastError = err;
+      }
+    }
+
+    if (!result) {
+      throw lastError || new Error("All AI models failed due to quota or network errors.");
+    }
 
     return result.toDataStreamResponse();
   } catch (error: any) {
