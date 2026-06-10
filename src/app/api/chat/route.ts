@@ -100,12 +100,13 @@ export async function POST(req: Request) {
           },
         }),
         bookAppointment: tool({
-          description: 'Book an appointment slot for the patient using a slotId',
+          description: 'Book an appointment slot for the patient using a slotId. You MUST use the exact full slotId UUID.',
           parameters: z.object({
-            slotId: z.string().describe('The ID of the slot to book, obtained from checkAvailability'),
+            slotId: z.string().describe('The EXACT full UUID of the slot to book, obtained from checkAvailability'),
             symptoms: z.string(),
           }),
           execute: async ({ slotId, symptoms }: { slotId: string, symptoms: string }) => {
+            if (!slotId || slotId.length < 30) return { success: false, message: 'Please provide the exact full slot ID from the availability list.' };
             if (supabase) {
               // 1. Get slot info
               const { data: slotData, error: slotError } = await supabase
@@ -181,12 +182,13 @@ export async function POST(req: Request) {
           },
         }),
         rescheduleAppointment: tool({
-          description: 'Reschedule an appointment. You must first use checkAvailability to get a new slotId.',
+          description: 'Reschedule an appointment. You MUST ask the user for both their appointmentId and the newSlotId before calling this.',
           parameters: z.object({
-            appointmentId: z.string().describe('The ID of the appointment to reschedule'),
-            newSlotId: z.string().describe('The ID of the new slot, obtained from checkAvailability'),
+            appointmentId: z.string().describe('The EXACT full UUID of the appointment to reschedule'),
+            newSlotId: z.string().describe('The EXACT full UUID of the new slot, obtained from checkAvailability'),
           }),
           execute: async ({ appointmentId, newSlotId }: { appointmentId: string, newSlotId: string }) => {
+            if (!appointmentId || appointmentId.length < 30 || !newSlotId || newSlotId.length < 30) return { success: false, message: 'I need both your full exact appointment ID and the exact new slot ID to reschedule.' };
             if (supabase) {
               // Mark new slot as booked first (race condition check)
               const { data: updatedSlot, error: updateError } = await supabase
@@ -219,11 +221,12 @@ export async function POST(req: Request) {
           },
         }),
         cancelAppointment: tool({
-          description: 'Cancel an appointment',
+          description: 'Cancel an appointment. You MUST ask the user for the exact appointmentId before calling this.',
           parameters: z.object({
-            appointmentId: z.string().describe('The ID of the appointment to cancel'),
+            appointmentId: z.string().describe('The EXACT full UUID of the appointment to cancel'),
           }),
           execute: async ({ appointmentId }: { appointmentId: string }) => {
+            if (!appointmentId || appointmentId.length < 30) return { success: false, message: 'Please provide the exact full appointment ID you wish to cancel.' };
             if (supabase) {
               // Free slot
               const { data: oldAppt } = await supabase.from('appointments').select('slot_id').eq('id', appointmentId).eq('patient_id', patientId).single();
