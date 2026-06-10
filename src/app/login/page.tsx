@@ -2,10 +2,18 @@
 
 import { createClient } from '@/utils/supabase/client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  
   const supabase = createClient();
+  const router = useRouter();
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -18,8 +26,43 @@ export default function LoginPage() {
     
     if (error) {
       console.error(error);
+      setErrorMsg(error.message);
       setLoading(false);
     }
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+
+    if (isSignUp) {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+          }
+        }
+      });
+      if (error) {
+        setErrorMsg(error.message);
+      } else {
+        router.push('/');
+      }
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) {
+        setErrorMsg(error.message);
+      } else {
+        router.push('/');
+      }
+    }
+    setLoading(false);
   };
 
   return (
@@ -28,7 +71,9 @@ export default function LoginPage() {
         <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/20 mx-auto mb-6">
           <span className="material-symbols-outlined text-white text-[32px]" style={{ fontVariationSettings: "'FILL' 1" }}>smart_toy</span>
         </div>
-        <h2 className="text-center text-headline-lg font-headline-lg text-on-surface">Sign in to CareFlow</h2>
+        <h2 className="text-center text-headline-lg font-headline-lg text-on-surface">
+          {isSignUp ? 'Create an Account' : 'Sign in to CareFlow'}
+        </h2>
         <p className="mt-2 text-center text-body-md font-body-md text-on-surface-variant">
           Access your digital reception portal
         </p>
@@ -36,10 +81,75 @@ export default function LoginPage() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-surface-container-lowest py-8 px-4 card-shadow sm:rounded-[2rem] sm:px-10 border border-outline-variant/20">
+          
+          <form onSubmit={handleEmailAuth} className="space-y-4 mb-6">
+            {errorMsg && (
+              <div className="bg-error/10 text-error text-sm p-3 rounded-lg border border-error/20">
+                {errorMsg}
+              </div>
+            )}
+            
+            {isSignUp && (
+              <div>
+                <label className="block text-label-sm font-medium text-on-surface mb-1">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface text-on-surface focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+                  placeholder="Your Full Name"
+                />
+              </div>
+            )}
+            
+            <div>
+              <label className="block text-label-sm font-medium text-on-surface mb-1">Email Address</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface text-on-surface focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+                placeholder="you@example.com"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-label-sm font-medium text-on-surface mb-1">Password</label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface text-on-surface focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 px-4 bg-primary text-white font-label-lg rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 mt-2"
+            >
+              {loading ? 'Processing...' : isSignUp ? 'Sign Up' : 'Sign In'}
+            </button>
+          </form>
+
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-outline-variant/30"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-surface-container-lowest text-on-surface-variant">Or continue with</span>
+            </div>
+          </div>
+
           <button
+            type="button"
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full flex justify-center items-center gap-3 py-3 px-4 border border-outline-variant rounded-xl shadow-sm bg-surface text-label-lg font-label-lg text-on-surface hover:bg-surface-container-low transition-colors disabled:opacity-50"
+            className="w-full flex justify-center items-center gap-3 py-3 px-4 border border-outline-variant rounded-xl shadow-sm bg-surface text-label-lg font-label-lg text-on-surface hover:bg-surface-container-low transition-colors disabled:opacity-50 mb-6"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -47,8 +157,19 @@ export default function LoginPage() {
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
             </svg>
-            {loading ? 'Connecting...' : 'Continue with Google'}
+            Google
           </button>
+
+          <p className="text-center text-sm text-on-surface-variant">
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button
+              type="button"
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-primary hover:underline font-medium"
+            >
+              {isSignUp ? 'Sign In' : 'Sign Up'}
+            </button>
+          </p>
         </div>
       </div>
     </div>

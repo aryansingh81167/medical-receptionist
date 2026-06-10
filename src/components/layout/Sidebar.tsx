@@ -1,4 +1,16 @@
+"use client";
+
+import { createClient } from '@/utils/supabase/client';
+import { useRouter } from 'next/navigation';
+
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const router = useRouter();
+  const supabase = createClient();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
   return (
     <>
       {/* Overlay */}
@@ -45,6 +57,10 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             <span className="material-symbols-outlined">settings</span>
             <span className="font-label-md text-label-md">Settings</span>
           </a>
+          <button onClick={handleSignOut} className="w-full flex items-center gap-4 px-4 py-3 text-on-secondary-container font-medium hover:bg-secondary-container/50 rounded-lg transition-all text-left">
+            <span className="material-symbols-outlined">logout</span>
+            <span className="font-label-md text-label-md">Sign Out</span>
+          </button>
         </div>
       </nav>
     </>

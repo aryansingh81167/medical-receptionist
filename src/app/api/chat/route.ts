@@ -1,7 +1,7 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { streamText, tool } from 'ai';
 import { z } from 'zod';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/utils/supabase/server';
 
 // Configure OpenAI provider to point to Groq's API
 const groq = createOpenAI({
@@ -14,6 +14,26 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized. Please log in.' }), { status: 401 });
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    const patientId = profile?.id;
+    const patientName = profile?.name || 'Patient';
+
+    if (!patientId) {
+      return new Response(JSON.stringify({ error: 'Patient profile not found. Please contact support.' }), { status: 400 });
+    }
+
     const { messages } = await req.json();
 
     const result = await streamText({
@@ -22,7 +42,7 @@ export async function POST(req: Request) {
       system: `You are a helpful, professional, and friendly AI Receptionist for a medical clinic called CareFlow. 
       Your job is to assist patients, answer their questions, and help them book appointments.
       Be concise, empathetic, and clear.
-      Assume the patient is already logged in as "John Doe" (patient_id: 11111111-1111-1111-1111-111111111111).
+      Assume the patient is already logged in as "${patientName}" (patient_id: ${patientId}).
       If they ask to book an appointment, ask them for their symptoms and preferred date. Use checkAvailability to find slots, then use bookAppointment with the slotId.`,
       tools: {
         checkAvailability: tool({
@@ -65,8 +85,6 @@ export async function POST(req: Request) {
           }),
           execute: async ({ slotId, symptoms }: { slotId: string, symptoms: string }) => {
             if (supabase) {
-              const patientId = '11111111-1111-1111-1111-111111111111';
-              
               // 1. Get slot info
               const { data: slotData, error: slotError } = await supabase
                 .from('slots')
@@ -104,7 +122,7 @@ export async function POST(req: Request) {
               const { data, error } = await supabase
                 .from('appointments')
                 .select('id, symptoms, status, slots(start_time), doctors(name)')
-                .eq('patient_id', '11111111-1111-1111-1111-111111111111')
+                .eq('patient_id', patientId)
                 .eq('status', 'scheduled')
                 .limit(5);
               

@@ -29,23 +29,8 @@ export default function Dashboard() {
           setAppointments(data);
         }
       } else {
-        // Mock data if Supabase isn't connected
-        setAppointments([
-          {
-            id: '1',
-            patient_name: 'John Doe',
-            date: new Date().toISOString().split('T')[0],
-            time: '10:00 AM',
-            symptoms: 'Mild fever and cough',
-          },
-          {
-            id: '2',
-            patient_name: 'Jane Smith',
-            date: new Date().toISOString().split('T')[0],
-            time: '02:00 PM',
-            symptoms: 'Routine checkup',
-          }
-        ]);
+        // Empty state if Supabase isn't connected
+        setAppointments([]);
       }
       setIsLoading(false);
     }

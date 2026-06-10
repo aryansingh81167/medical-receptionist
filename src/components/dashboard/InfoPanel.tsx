@@ -1,27 +1,49 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/utils/supabase/client';
 
 export function InfoPanel({ onAction, refreshTrigger = 0 }: { onAction?: (action: string) => void, refreshTrigger?: number }) {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const supabase = createClient();
 
   useEffect(() => {
     async function fetchAppointments() {
-      if (!supabase) {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
         setLoading(false);
         return;
       }
       
-      // Fetch upcoming appointments (simplified logic: just top 3 ordered by date)
+      const { data: profile } = await supabase.from('profiles').select('id, name').eq('auth_user_id', user.id).single();
+      
+      if (!profile) {
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('appointments')
-        .select('*')
-        // Ideally we would filter by date >= today, but for demo we just order by date
-        .order('date', { ascending: true })
+        .select('id, symptoms, status, slots(start_time), doctors(name)')
+        .eq('patient_id', profile.id)
+        .eq('status', 'scheduled')
         .limit(3);
         
       if (!error && data) {
-        setAppointments(data);
+        const sortedData = data.sort((a, b) => new Date((a.slots as any)?.start_time).getTime() - new Date((b.slots as any)?.start_time).getTime());
+
+        const formatted = sortedData.map(appt => {
+          const startTime = new Date((appt.slots as any)?.start_time);
+          return {
+            id: appt.id,
+            date: startTime.toLocaleDateString(),
+            time: startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            patient_name: profile.name,
+            symptoms: appt.symptoms,
+            doctor: (appt.doctors as any)?.name
+          };
+        });
+        setAppointments(formatted);
       }
       setLoading(false);
     }
