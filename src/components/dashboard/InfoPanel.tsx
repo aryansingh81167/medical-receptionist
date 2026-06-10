@@ -1,0 +1,91 @@
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+
+export function InfoPanel({ onAction, refreshTrigger = 0 }: { onAction?: (action: string) => void, refreshTrigger?: number }) {
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAppointments() {
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
+      
+      // Fetch upcoming appointments (simplified logic: just top 3 ordered by date)
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        // Ideally we would filter by date >= today, but for demo we just order by date
+        .order('date', { ascending: true })
+        .limit(3);
+        
+      if (!error && data) {
+        setAppointments(data);
+      }
+      setLoading(false);
+    }
+    fetchAppointments();
+  }, [refreshTrigger]);
+
+  return (
+    <aside className="w-full md:w-[350px] p-margin-mobile md:p-margin-desktop md:pl-0 flex flex-col gap-stack-md overflow-y-auto custom-scrollbar">
+      <div className="bg-surface-container-lowest card-shadow rounded-[2rem] p-6 flex flex-col flex-1 h-full max-h-[80vh]">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-headline-md text-headline-md text-on-surface">Upcoming Appointments</h3>
+        </div>
+        
+        {loading ? (
+          <div className="flex items-center justify-center p-6 mb-6">
+            <span className="material-symbols-outlined animate-spin text-primary text-[32px]">sync</span>
+          </div>
+        ) : appointments.length > 0 ? (
+          <div className="flex flex-col gap-3 mb-6">
+            {appointments.map((appt) => (
+              <div key={appt.id} className="flex items-center gap-4 p-4 border border-outline-variant/30 rounded-2xl bg-surface">
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="material-symbols-outlined text-primary text-[24px]">calendar_month</span>
+                </div>
+                <div>
+                  <p className="font-label-lg text-label-lg text-on-surface font-semibold">{appt.date} at {appt.time}</p>
+                  <p className="font-body-sm text-body-sm text-on-surface-variant capitalize">{appt.patient_name || 'Patient'} • {appt.symptoms || 'General'}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-center gap-4 p-4 border border-outline-variant/30 rounded-2xl mb-6 bg-surface">
+            <div className="w-12 h-12 bg-surface-container-low rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-on-surface-variant text-[24px]">calendar_month</span>
+            </div>
+            <div>
+              <p className="font-label-lg text-label-lg text-on-surface font-semibold">No appointments yet</p>
+              <p className="font-body-sm text-body-sm text-on-surface-variant">Use the receptionist to book.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Quick Actions moved here */}
+        <h3 className="font-headline-md text-headline-md text-on-surface mb-4 mt-2">Quick Actions</h3>
+        <div className="grid grid-cols-2 gap-3 flex-1">
+          <button onClick={() => onAction?.('Book Appointment')} className="flex flex-col items-center justify-center p-4 bg-surface border border-outline-variant/20 rounded-2xl hover:bg-primary-container/10 transition-all group active:scale-95">
+            <span className="material-symbols-outlined text-primary mb-2 text-[28px] group-hover:scale-110 transition-transform">add_circle</span>
+            <span className="font-label-sm text-label-sm text-on-surface font-medium">Book Appt</span>
+          </button>
+          <button onClick={() => onAction?.('Check Availability')} className="flex flex-col items-center justify-center p-4 bg-surface border border-outline-variant/20 rounded-2xl hover:bg-primary-container/10 transition-all group active:scale-95">
+            <span className="material-symbols-outlined text-tertiary mb-2 text-[28px] group-hover:scale-110 transition-transform">verified</span>
+            <span className="font-label-sm text-label-sm text-on-surface font-medium">Check Avail</span>
+          </button>
+          <button onClick={() => onAction?.('Reschedule Appointment')} className="flex flex-col items-center justify-center p-4 bg-surface border border-outline-variant/20 rounded-2xl hover:bg-primary-container/10 transition-all group active:scale-95">
+            <span className="material-symbols-outlined text-secondary mb-2 text-[28px] group-hover:scale-110 transition-transform">event_repeat</span>
+            <span className="font-label-sm text-label-sm text-on-surface font-medium">Reschedule</span>
+          </button>
+          <button onClick={() => onAction?.('Cancel Appointment')} className="flex flex-col items-center justify-center p-4 bg-surface border border-outline-variant/20 rounded-2xl hover:bg-primary-container/10 transition-all group active:scale-95">
+            <span className="material-symbols-outlined text-error mb-2 text-[28px] group-hover:scale-110 transition-transform">cancel</span>
+            <span className="font-label-sm text-label-sm text-on-surface font-medium">Cancel</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+}
