@@ -154,9 +154,11 @@ export default function Home() {
                                <div className="bg-surface p-4 rounded-xl border border-outline-variant/30">
                                  <p className="font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-tertiary">calendar_today</span> Available Slots</p>
                                  <div className="flex flex-wrap gap-2 mt-3">
-                                   {tool.result.availableSlots?.map((slot: string) => (
-                                     <button key={slot} onClick={() => { handleInputChange({ target: { value: `Book ${slot}` } } as any); setTimeout(() => handleSubmit(new Event('submit') as any), 100); }} className="px-3 py-1.5 bg-surface-container-low hover:bg-primary hover:text-white text-on-surface rounded-lg text-sm border border-outline-variant/20 transition-all active:scale-95">{slot}</button>
-                                   ))}
+                                    {tool.result.availableSlots?.map((slot: any) => (
+                                      <button key={slot.slotId} onClick={() => { handleInputChange({ target: { value: `Book slot ${slot.slotId} with ${slot.doctor} at ${slot.time}` } } as any); setTimeout(() => handleSubmit(new Event('submit') as any), 100); }} className="px-3 py-1.5 bg-surface-container-low hover:bg-primary hover:text-white text-on-surface rounded-lg text-sm border border-outline-variant/20 transition-all active:scale-95">
+                                        {slot.time} - {slot.doctor}
+                                      </button>
+                                    ))}
                                    {tool.result.availableSlots?.length === 0 && <span className="text-sm text-error">No slots available for this date.</span>}
                                  </div>
                                </div>

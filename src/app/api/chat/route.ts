@@ -32,16 +32,16 @@ export async function POST(req: Request) {
       const { data: newProfile, error: insertError } = await supabase
         .from('profiles')
         .insert([{
+          id: user.id,
           auth_user_id: user.id,
-          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Patient',
-          email: user.email || ''
+          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Patient'
         }])
         .select('id, name')
         .single();
         
       if (insertError) {
         console.error('Profile creation error:', insertError);
-        return new Response(JSON.stringify({ error: 'Failed to create patient profile. Please try again.' }), { status: 500 });
+        return new Response(JSON.stringify({ error: `Failed to create patient profile. Error: ${insertError.message}` }), { status: 500 });
       }
       profile = newProfile;
     }
@@ -62,7 +62,9 @@ export async function POST(req: Request) {
       Your job is to assist patients, answer their questions, and help them book appointments.
       Be concise, empathetic, and clear.
       Assume the patient is already logged in as "${patientName}" (patient_id: ${patientId}).
-      If they ask to book an appointment, ask them for their symptoms and preferred date. Use checkAvailability to find slots, then use bookAppointment with the slotId.`,
+      If they ask to book an appointment, ask them for their symptoms and preferred date. Use checkAvailability to find slots, then use bookAppointment with the slotId.
+      If they ask for medical records or lab results, politely inform them that you do not have access to medical records at this time.
+      Only use the tools provided to you. Do not hallucinate tools.`,
       tools: {
         checkAvailability: tool({
           description: 'Check available appointment slots for a given date',
@@ -144,7 +146,9 @@ export async function POST(req: Request) {
         }),
         getAppointments: tool({
           description: 'Get upcoming appointments for the logged-in patient',
-          parameters: z.object({}),
+          parameters: z.object({
+            dummy: z.string().optional().describe('Unused parameter, leave empty'),
+          }),
           execute: async () => {
             if (supabase) {
               const { data, error } = await supabase
