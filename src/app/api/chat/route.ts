@@ -21,11 +21,30 @@ export async function POST(req: Request) {
       return new Response(JSON.stringify({ error: 'Unauthorized. Please log in.' }), { status: 401 });
     }
 
-    const { data: profile } = await supabase
+    let { data: profile } = await supabase
       .from('profiles')
       .select('id, name')
       .eq('auth_user_id', user.id)
       .single();
+
+    if (!profile) {
+      // Auto-create profile if it doesn't exist yet
+      const { data: newProfile, error: insertError } = await supabase
+        .from('profiles')
+        .insert([{
+          auth_user_id: user.id,
+          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Patient',
+          email: user.email || ''
+        }])
+        .select('id, name')
+        .single();
+        
+      if (insertError) {
+        console.error('Profile creation error:', insertError);
+        return new Response(JSON.stringify({ error: 'Failed to create patient profile. Please try again.' }), { status: 500 });
+      }
+      profile = newProfile;
+    }
 
     const patientId = profile?.id;
     const patientName = profile?.name || 'Patient';
@@ -112,7 +131,8 @@ export async function POST(req: Request) {
                   patient_id: patientId, 
                   doctor_id: slotData.doctor_id, 
                   slot_id: slotId, 
-                  symptoms 
+                  symptoms,
+                  status: 'scheduled'
                 }])
                 .select();
                 
