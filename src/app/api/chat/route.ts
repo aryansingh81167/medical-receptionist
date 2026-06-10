@@ -62,6 +62,7 @@ export async function POST(req: Request) {
       Your job is to assist patients, answer their questions, and help them book appointments.
       Be concise, empathetic, and clear.
       Assume the patient is already logged in as "${patientName}" (patient_id: ${patientId}).
+      Today's date is ${new Date().toLocaleDateString('en-CA')} (YYYY-MM-DD). Always use this as your reference for "today", "tomorrow", etc.
       If they ask to book an appointment, ask them for their symptoms and preferred date. Use checkAvailability to find slots, then use bookAppointment with the slotId.
       If they ask for medical records or lab results, politely inform them that you do not have access to medical records at this time.
       Only use the tools provided to you. Do not hallucinate tools.`,
